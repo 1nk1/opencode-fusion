@@ -110,7 +110,7 @@ If your models come from a subscription, skip the per-role interview: name the s
 
 | Profile | Subscription | Main / sidekick | Beyond the core roles |
 |---------|--------------|-----------------|-----------------------|
-| `opencode-go` | [OpenCode Go](https://opencode.ai/go) | GLM 5.2 / DeepSeek V4 Flash | research, design, reviewer, vision |
+| `opencode-go` | [OpenCode Go](https://opencode.ai/go) | Kimi K3 / DeepSeek V4 Flash | research, design, reviewer, vision |
 | `opencode-zen` | [OpenCode Zen](https://opencode.ai/docs/zen/) pay-as-you-go | Claude Opus 5 / GLM 5.2 | research, design, reviewer |
 | `opencode-zen-free` | OpenCode Zen free-tier models | Big Pickle / MiMo V2.5 Free | vision |
 | `chatgpt` | ChatGPT Plus or Pro | GPT-5.6 Sol / GPT-5.6 Luna | core roles only |
