@@ -12,7 +12,7 @@ import { spawn } from "node:child_process";
 import os from "node:os";
 import { tool } from "@opencode-ai/plugin";
 
-const DEFAULT_MODEL = "claude-fable-5";
+const DEFAULT_MODEL = "claude-opus-5";
 const DEFAULT_EFFORT = "high";
 // Full model ids only (no aliases): the post-review modelUsage check compares
 // against this exact string, and aliases would make that check meaningless.
@@ -274,7 +274,7 @@ function resolveModelChoice(model, effort) {
   const chosenModel = model ?? DEFAULT_MODEL;
   const chosenEffort = effort ?? DEFAULT_EFFORT;
   if (!MODEL_PATTERN.test(chosenModel)) {
-    throw new Error(`model must be a full claude-* model id, for example ${DEFAULT_MODEL} or claude-opus-4-8`);
+    throw new Error(`model must be a full claude-* model id, for example ${DEFAULT_MODEL} or claude-sonnet-5`);
   }
   if (!EFFORT_LEVELS.has(chosenEffort)) {
     throw new Error(`effort must be one of ${[...EFFORT_LEVELS].join(", ")}`);
@@ -393,8 +393,8 @@ function createClaudeTools({ run = runClaudeProcess, environment = process.env, 
           throw new Error("Claude Code review did not return the required PLAN_APPROVED or PLAN_REVISE signal");
         }
         // Exact id or a date-stamped variant of it only. A bare startsWith
-        // would let a shorter family name (claude-fable) be satisfied by a
-        // longer model id (claude-fable-5).
+        // would let a shorter family name (claude-opus) be satisfied by a
+        // longer model id (claude-opus-5).
         const datedVariant = new RegExp(`^${choice.model.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-\\d{8}$`);
         const usedModels = Object.keys(response.modelUsage ?? {});
         if (!usedModels.some((used) => used === choice.model || datedVariant.test(used))) {
