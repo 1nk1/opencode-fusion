@@ -5,6 +5,8 @@ agent: build
 
 Run a Fusion health check and report the results. Check four layers, report each enabled layer as PASS or FAIL with one line of evidence, and do NOT fix anything - this command only reports.
 
+Throughout, CONFIG DIR means opencode's global config directory: `$XDG_CONFIG_HOME/opencode/` when `XDG_CONFIG_HOME` is set and non-empty, otherwise `~/.config/opencode/` (Windows: `%USERPROFILE%\.config\opencode\`). The paths below are written with the common default; resolve them against the real value first, or a correct install under a custom `XDG_CONFIG_HOME` will look missing and be reported as a false FAIL.
+
 1. **Live enforcement (this running session).** Inspect your own available tools - do not call anything, just check what exists in your toolset. Fusion denies `edit`, `grep`, `glob`, and `list` for this agent, and opencode removes denied tools from the tool schema entirely. If any of those four tools is available to you right now, the Fusion config is NOT loaded in this session - report FAIL and that a full restart of opencode is the fix. If all four are absent and `task` is available, report PASS.
 
 2. **Config on disk.** Read `~/.config/opencode/opencode.json` (Windows: `%USERPROFILE%\.config\opencode\opencode.json`). FAIL if the file is missing or not valid JSON. Otherwise list each `agent.<role>.model` assignment found, and FAIL if `build` or `sidekick` has no model (`explore` should normally have one too; research/design/reviewer/vision are optional).

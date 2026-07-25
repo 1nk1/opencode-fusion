@@ -7,6 +7,8 @@ description: Use when a user wants to set up, configure, install, or reconfigure
 
 This skill configures the Fusion agent team (a main agent, a sidekick executor, an explore searcher, and optional specialists) by writing the user's GLOBAL opencode config at `~/.config/opencode/` (on Windows: `%USERPROFILE%\.config\opencode\`). It does not require cloning any repository.
 
+opencode resolves that directory as `$XDG_CONFIG_HOME/opencode/` when `XDG_CONFIG_HOME` is set and non-empty, falling back to `~/.config/opencode/` otherwise. Every `~/.config/opencode/...` path below means that resolved directory. The bundled installer in Step 4 works this out itself, so the normal flow needs no special handling; only the manual fallback in Step 4b and the verification in Step 5 need you to resolve it by hand. Installing into `~/.config/opencode/` on a machine with a different `XDG_CONFIG_HOME` writes a tree opencode never reads - the install looks successful and Fusion silently never loads.
+
 ## What Fusion is
 
 Fusion splits work across agents with asymmetric permissions:

@@ -58,8 +58,19 @@ function parseArgs(argv) {
       opts.extras = optionValue(rest, i++, arg).split(',').map((s) => s.trim()).filter(Boolean);
     } else fail(`unknown argument: ${arg}`);
   }
-  opts.configDir = path.resolve(opts.configDir || path.join(os.homedir(), '.config', 'opencode'));
+  opts.configDir = path.resolve(opts.configDir || defaultConfigDir());
   return { command, opts };
+}
+
+// opencode resolves its global config base as XDG_CONFIG_HOME || ~/.config and
+// then appends "opencode". Mirroring that exactly is load-bearing: writing to
+// ~/.config/opencode while opencode reads $XDG_CONFIG_HOME/opencode would
+// install successfully into a directory opencode never loads, and every
+// post-install check would pass against the wrong tree. An empty value counts
+// as unset, matching opencode's own `||` fallback.
+function defaultConfigDir() {
+  const base = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
+  return path.join(base, 'opencode');
 }
 
 function isPlainObject(value) {
