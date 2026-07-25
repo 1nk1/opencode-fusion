@@ -154,6 +154,99 @@ describe('fusion-setup deterministic installer', () => {
     assert.equal(fs.readFileSync(prompt, 'utf8'), 'user build prompt\n');
   });
 
+  // Hand-editing opencode.json is a documented workflow, so it must not
+  // permanently wedge reapply. apply merges INTO the current file, so the edits
+  // survive; --adopt-config accepts that file as the new baseline.
+  describe('reapply over a hand-edited config', () => {
+    const handEdit = () => {
+      const configPath = path.join(dir, 'opencode.json');
+      const config = readJson(configPath);
+      config.theme = 'user-picked-this-later';
+      writeJson(configPath, config);
+      return configPath;
+    };
+
+    test('apply refuses by default and names --adopt-config', () => {
+      assert.equal(run(applyArgs()).status, 0);
+      const configPath = handEdit();
+      const before = fs.readFileSync(configPath);
+
+      const result = run(applyArgs());
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /opencode\.json was modified after Fusion installed it/);
+      assert.match(result.stderr, /--adopt-config/);
+      assert.deepEqual(fs.readFileSync(configPath), before, 'a refusal must change nothing');
+    });
+
+    test('--adopt-config reapplies and keeps the hand edit', () => {
+      assert.equal(run(applyArgs()).status, 0);
+      const prompt = path.join(dir, 'agent', 'build.md');
+      const installed = fs.readFileSync(prompt);
+      handEdit();
+
+      const result = run(applyArgs(['--adopt-config']));
+      assert.equal(result.status, 0, result.stderr);
+      const config = readJson(path.join(dir, 'opencode.json'));
+      assert.equal(config.theme, 'user-picked-this-later', 'the hand edit must survive the merge');
+      assert.equal(config.model, 'prov/main-model', 'the fragment must still apply');
+      assert.deepEqual(fs.readFileSync(prompt), installed);
+    });
+
+    test('--adopt-config does not excuse a modified managed prompt', () => {
+      assert.equal(run(applyArgs()).status, 0);
+      handEdit();
+      const prompt = path.join(dir, 'agent', 'build.md');
+      fs.writeFileSync(prompt, 'user customized this prompt\n');
+
+      const result = run(applyArgs(['--adopt-config']));
+      assert.equal(result.status, 1, 'prompt ownership is a separate guarantee');
+      assert.match(result.stderr, /agent\/build\.md was modified after Fusion installed it/);
+      assert.equal(fs.readFileSync(prompt, 'utf8'), 'user customized this prompt\n');
+    });
+
+    test('undo after --adopt-config still restores the true pre-install state', () => {
+      const configPath = path.join(dir, 'opencode.json');
+      writeJson(configPath, { theme: 'original-before-fusion' });
+      const preFusion = fs.readFileSync(configPath);
+
+      assert.equal(run(applyArgs()).status, 0);
+      handEdit();
+      assert.equal(run(applyArgs(['--adopt-config'])).status, 0);
+
+      const undone = run(['undo', '--config-dir', dir]);
+      assert.equal(undone.status, 0, undone.stderr);
+      assert.deepEqual(
+        fs.readFileSync(configPath),
+        preFusion,
+        'adopting a new baseline must not overwrite the recorded pre-install original'
+      );
+      assert.ok(!fs.existsSync(path.join(dir, 'agent', 'build.md')));
+    });
+
+    test('the plan names the keys a fragment would override', () => {
+      assert.equal(run(applyArgs()).status, 0);
+      const configPath = path.join(dir, 'opencode.json');
+      const config = readJson(configPath);
+      config.model = 'prov/i-changed-the-main-model';
+      writeJson(configPath, config);
+
+      const result = run(applyArgs(['--adopt-config', '--dry-run']));
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /OVERRIDES:.*model/);
+      assert.equal(
+        readJson(configPath).model,
+        'prov/i-changed-the-main-model',
+        'dry run must write nothing'
+      );
+    });
+
+    test('no override warning when the fragment contradicts nothing', () => {
+      const result = run(applyArgs(['--dry-run']));
+      assert.equal(result.status, 0, result.stderr);
+      assert.doesNotMatch(result.stdout, /OVERRIDES:/);
+    });
+  });
+
   test('undo refuses without changing anything when a managed prompt was modified', () => {
     assert.equal(run(applyArgs()).status, 0);
     const prompt = path.join(dir, 'agent', 'build.md');

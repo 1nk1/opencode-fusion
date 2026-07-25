@@ -44,10 +44,11 @@ function optionValue(rest, index, option) {
 
 function parseArgs(argv) {
   const [command, ...rest] = argv;
-  const opts = { roles: [...CORE_ROLES], rolesExplicit: false, extras: [], dryRun: false, configDir: null, config: null, profile: null };
+  const opts = { roles: [...CORE_ROLES], rolesExplicit: false, extras: [], dryRun: false, configDir: null, config: null, profile: null, adoptConfig: false };
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i];
     if (arg === '--dry-run') opts.dryRun = true;
+    else if (arg === '--adopt-config') opts.adoptConfig = true;
     else if (arg === '--config') opts.config = optionValue(rest, i++, arg);
     else if (arg === '--profile') opts.profile = optionValue(rest, i++, arg);
     else if (arg === '--config-dir') opts.configDir = optionValue(rest, i++, arg);
@@ -339,11 +340,20 @@ function readManifest(manifestPath) {
   return manifest;
 }
 
-function assertOwned(target, expectedHash, expectedMode, label) {
+function assertOwned(target, expectedHash, expectedMode, label, hint = '') {
   const snapshot = snapshotFile(target, label);
   if (!snapshot.existed || hash(snapshot.bytes) !== expectedHash || snapshot.mode !== expectedMode) {
-    fail(`${label} was modified after Fusion installed it; refusing to overwrite or remove it`);
+    fail(`${label} was modified after Fusion installed it; refusing to overwrite or remove it${hint ? ` - ${hint}` : ''}`);
   }
+}
+
+/** Top-level keys where merging the fragment would change the current value -
+    i.e. exactly the hand-edits an adopting reapply is about to override. */
+function overriddenKeys(existing, fragment) {
+  return Object.keys(fragment)
+    .filter((key) => Object.hasOwn(existing, key)
+      && JSON.stringify(existing[key]) !== JSON.stringify(deepMerge(existing[key], fragment[key])))
+    .sort();
 }
 
 function installedMode(mode) {
@@ -569,7 +579,19 @@ function apply(opts) {
 
   const prior = fs.existsSync(manifestPath) ? readManifest(manifestPath) : null;
   if (prior) {
-    assertOwned(configPath, prior.config.installedHash, prior.config.installedMode, 'opencode.json');
+    // Editing opencode.json by hand is a documented workflow, and the merge
+    // below folds the fragment INTO the current file rather than replacing it,
+    // so those edits are not lost. Without an opt-out, though, one hand-edit
+    // permanently blocks every later reapply - including a prompt-only refresh
+    // whose managed files are all still intact. --adopt-config accepts the
+    // current file as the new baseline; the manifest keeps the pre-install
+    // originalContent, so undo still restores the true pre-Fusion state.
+    if (!opts.adoptConfig) {
+      assertOwned(
+        configPath, prior.config.installedHash, prior.config.installedMode, 'opencode.json',
+        'the merge preserves your edits, so re-run with --adopt-config to accept the current file as the new baseline (undo still restores the pre-install state)'
+      );
+    }
     for (const record of prior.files) {
       const target = inspectDestination(opts.configDir, record.path);
       assertOwned(target, record.installedHash, record.installedMode, record.path);
@@ -622,6 +644,12 @@ function apply(opts) {
     `merge into:   opencode.json (${Object.keys(fragment).join(', ')})`,
     ...sources.map((source) => `install:      ${source.to}`),
   ];
+  // Only meaningful against an existing config, and silent when the fragment
+  // adds keys without contradicting anything already there.
+  const overrides = configSnapshot.existed ? overriddenKeys(existing, fragment) : [];
+  if (overrides.length) {
+    planLines.push(`OVERRIDES:    fragment replaces your current value for: ${overrides.join(', ')}`);
+  }
   if (orphans.length) {
     planLines.push(`WARNING:      model(s) reference provider(s) with no provider block: ${orphans.join(', ')} - fine only if opencode knows them natively`);
   }

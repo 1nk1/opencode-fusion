@@ -205,6 +205,8 @@ All agent models live in one place: `~/.config/opencode/opencode.json` under `ag
 
 Change the value, add a `provider` block if the model uses a new provider, and restart opencode. For a persistent default main model, also update the top-level `model` field. The sidekick should stay cheaper and faster than the main agent when possible.
 
+Editing this file by hand is fine and loses nothing, but the installer records a hash of what it wrote, so the next reapply refuses once to make the mismatch visible. Re-run it with `--adopt-config` to accept your edited file as the new baseline; the fragment still merges into your current file rather than replacing it, and `undo` still restores the true pre-Fusion state. Reaching for "reconfigure fusion" instead keeps the manifest accurate without that step.
+
 > [!WARNING]
 > Do not add a `model:` line to the agent `.md` files themselves: frontmatter overrides `opencode.json` on any key it sets, so a model baked in there would silently win over your config.
 
@@ -214,6 +216,9 @@ Change the value, add a `provider` block if the model uses a new provider, and r
 ### Adjust the bash allowlist
 
 The main agent's bash is allowlisted to verification and git commands (`npm run lint`, `npm test`, `git diff`, `git status`, `git log`, `git show`, `git add`); `git commit` and `git push` prompt for per-command approval, and force/mirror/delete-ref pushes are denied. Edit the installed `~/.config/opencode/agent/build.md` to add or remove allowed commands in the `permission.bash` section. Keep `"*": "deny"` first so unlisted commands are blocked by default, and keep the specific push denies *after* `"git push*"`; opencode resolves overlapping patterns by last-match-wins. Note that the allowlist matches each command individually: do not chain commands with `&&`, `||`, `;`, or `|`, because the chain will not match any single pattern and gets blocked.
+
+> [!NOTE]
+> Editing an installed prompt makes it yours. The installer records a hash of every file it writes, and a reapply refuses rather than overwrite a file that changed - deliberately, so your customization is never silently clobbered. There is no `--adopt` override for prompts (unlike `opencode.json`). To hand the file back to the installer, restore the bundled copy from `.opencode/skills/fusion-setup/agent/` first. Keep a note of your edit either way, since a reapply that does succeed installs the bundled version.
 
 <details>
 <summary><b>Depth requirement and optional hardening</b></summary>
