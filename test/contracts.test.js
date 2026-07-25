@@ -651,6 +651,45 @@ describe('build.md body preservation contracts', () => {
   });
 });
 
+// design.md once listed four third-party skill names. Every one of them had
+// gone stale, so the agent hunted for skills that did not exist, fell back to
+// "no design skill applied", and ignored the real ones sitting installed. The
+// durable property is that it routes through the skill list opencode injects
+// rather than through any name baked in here.
+describe('design.md skill-selection contract', () => {
+  const body = agents.design.body;
+
+  test('routes through the injected skill list, not hardcoded names', () => {
+    assert.ok(
+      bodyMentions(body, '`skill` tool'),
+      'contract violated: design.md must point at the skill tool that loads a skill'
+    );
+    assert.ok(
+      bodyHasAny(body, ['lists the skills', 'in the list', 'read that list', 'pick the entry']),
+      'contract violated: design.md must tell design to choose from the environment list'
+    );
+  });
+
+  test('names no specific skill and says why', () => {
+    // A shipped prompt cannot know which skills a given machine has installed,
+    // so naming any is a latent staleness bug rather than a helpful hint.
+    const stale = [
+      'design-taste-frontend', 'high-end-visual-design',
+      'redesign-existing-projects', 'minimalist-ui',
+    ];
+    const present = stale.filter((name) => body.includes(name));
+    assert.deepEqual(
+      present,
+      [],
+      `contract violated: design.md must not hardcode skill names (found: ${present.join(', ')})`
+    );
+    assert.ok(
+      bodyHasAny(body, ['names no specific skill', 'installs differ', 'hardcoded here']),
+      'contract violated: design.md must record WHY it names no skill, or the names come back'
+    );
+  });
+});
+
 // agent/ is pinned closed above and profiles/ in profiles.test.js, so a stray
 // file in either fails immediately. commands/ and plugins/ reach the user only
 // through the installer's EXTRAS map, so an unregistered file there would ship
