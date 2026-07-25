@@ -2040,7 +2040,11 @@ html[data-theme="dark"] .term {
 }
 .docs-table th {
   font-weight: 600;
-  color: var(--text-low);
+  /* --text-mid, not --text-low: this is the one place a muted token sits on
+     --surface-2, and at 11px uppercase it is small text, so WCAG AA wants
+     4.5:1. text-low on surface-2 is only 4.08:1 in dark mode. text-mid clears
+     it in both themes (5.23:1 dark, 8.09:1 light) and stays visually quiet. */
+  color: var(--text-mid);
   font-size: 0.6875rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
