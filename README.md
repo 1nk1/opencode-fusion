@@ -235,6 +235,38 @@ The remaining documented keys make a local Fusion setup cheaper, more private, a
 
 </details>
 
+## Uninstall
+
+Say `undo fusion`, or run the bundled installer directly:
+
+```bash
+node <skill-dir>/scripts/install.js undo
+```
+
+It restores `opencode.json` to its exact pre-install bytes from the recorded manifest, removes only the files Fusion created, restores any it replaced, and keeps every timestamped backup. If you edited an installed agent prompt or the config by hand afterwards, it refuses and names the conflict rather than overwriting your work. Restart opencode when it finishes; it falls back to its built-in build/plan agents.
+
+Undo is all or nothing: there is no switch that suspends Fusion for one session and restores it later. Fusion's `build` and `plan` also replace opencode's built-in primaries, so out of the box there is no unrestricted primary to fall back to. If you want one, add it yourself.
+
+### Escape hatch
+
+Create `~/.config/opencode/agent/normal.md`:
+
+```markdown
+---
+description: Unrestricted primary - plain opencode, no Fusion permissions
+mode: primary
+---
+
+You are a standard opencode agent with no delegation requirements.
+```
+
+Restart once, then `Tab` cycles through the primary agents mid-session, so you can switch to it for a quick fix and switch back. Leave out the `model` key and it follows your top-level default. The installer never manages this file, so `undo` and reapply both leave it in place.
+
+This does not weaken the split: switching primaries is a keybind you press, not a tool the main agent can call, so `build` still cannot edit and still cannot unrestrict itself. Two things to know before you rely on it:
+
+- **It has no guardrails at all**, not just no delegation. It inherits opencode's defaults, so destructive shell commands that the sidekick would ask about run without a prompt.
+- **The transcript is shared between primary agents.** After switching, the new agent reads earlier turns as its own work - expect `build` to apologise for a direct edit the escape hatch made. Switch in a fresh session when that would confuse things.
+
 ## Limitations
 
 - **No dynamic mid-session routing.** Devin Fusion's second technique, swapping the active model mid-task during context compaction, needs Devin's closed product surface and is not possible in opencode. This repo implements the sidekick pattern only; model assignments are fixed per role at startup. It is an explicit non-goal, not a missing feature.
@@ -254,6 +286,8 @@ The main agent's prompt carries an explicit escalation ladder, so the retry loop
 3. **Dictated patch still fails verification:** the plan is wrong, not the sidekick, and the main agent revises the plan. It reports a blocker only when verification fails for reasons outside the code (broken environment, flaky tests), with the real command output attached.
 
 The mechanical block is on the main agent's *tools*, not on the content of its specs. Dictating an exact diff was always within the rules; the prompt makes it an explicit step instead of an emergent discovery.
+
+The ladder assumes the sidekick *answers*. If its provider is down or out of quota, no rung helps - the main agent has no path to disk at all, and the honest outcome is a reported blocker. Point `agent.sidekick.model` at a working provider and restart, or reach for the [escape hatch](#escape-hatch) if you need to keep moving in that session.
 
 </details>
 
