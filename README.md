@@ -50,14 +50,14 @@ The diagram shows one delegation cycle: the main agent delegates exploration, pl
 
 | Agent | Role | Config key | Required | Suggested model (2026) |
 |-------|------|------------|----------|------------------------|
-| `build` | Main: plan, delegate, review | `agent.build.model` | core | `claude-fable-5` |
+| `build` | Main: plan, delegate, review | `agent.build.model` | core | `claude-opus-5` |
 | `plan` | Plan mode: same brain as build, plans but does not execute | `agent/plan.md` (file) | core | reuses main model |
 | `sidekick` | Execute edits and commands | `agent.sidekick.model` | core | `grok-4.5` |
 | `explore` | Fast read-only exploration (opencode's built-in agent; no prompt file) | `agent.explore.model` | core | `grok-4.5` |
 | `research` | Read-only external research (web, docs) | `agent.research.model` | optional | `claude-sonnet-5` |
 | `design` | Frontend/UI implementation | `agent.design.model` | optional | `kimi-k3` |
 | `reviewer` | Critique a plan before implementation; audit a diff before commit | `agent.reviewer.model` | optional | `gpt-5.6-sol` |
-| `vision` | Transcribe images the main model cannot see | `agent.vision.model` | optional | `gemini-3.5-flash` |
+| `vision` | Transcribe images the main model cannot see | `agent.vision.model` | optional | `gemini-3.6-flash` |
 
 Models move fast. Treat these as 2026 starting points, not requirements. Use any provider you like; in config each model is written as `provider/model-id` (for example `openai/gpt-5.6-sol`), and the sidekick should stay cheaper and faster than the main agent. The mix above spans several vendors on purpose, so the main agent's review of each sidekick diff is cross-vendor. If a subscription covers your models, a [profile](#subscription-profiles) fills this table in for you.
 
@@ -111,14 +111,14 @@ If your models come from a subscription, skip the per-role interview: name the s
 | Profile | Subscription | Main / sidekick | Beyond the core roles |
 |---------|--------------|-----------------|-----------------------|
 | `opencode-go` | [OpenCode Go](https://opencode.ai/go) | GLM 5.2 / DeepSeek V4 Flash | research, design, reviewer, vision |
-| `opencode-zen` | [OpenCode Zen](https://opencode.ai/docs/zen/) pay-as-you-go | Claude Fable 5 / GLM 5.2 | research, design, reviewer |
+| `opencode-zen` | [OpenCode Zen](https://opencode.ai/docs/zen/) pay-as-you-go | Claude Opus 5 / GLM 5.2 | research, design, reviewer |
 | `opencode-zen-free` | OpenCode Zen free-tier models | Big Pickle / MiMo V2.5 Free | vision |
 | `chatgpt` | ChatGPT Plus or Pro | GPT-5.6 Sol / GPT-5.6 Luna | core roles only |
 | `github-copilot` | GitHub Copilot | Claude Sonnet 5 / GPT-5.4 Mini | research, reviewer |
 
 Authentication stays out-of-band: connect the provider once with `opencode auth login` (or `/connect` inside opencode). Profiles contain no keys, adapters, or endpoints (opencode knows these providers natively), and the skill never asks for a key in chat. To adjust a pick, keep the profile and add a small override fragment (`--profile <name> --config <delta.json>`; your fragment wins on conflicts).
 
-Four notes. `opencode-go` and `opencode-zen-free` include a `vision` role because their main models cannot read images. `opencode-zen-free` runs on free-period models (Big Pickle is a stealth model). OpenCode's policy allows prompts to be used for training while a model is free, so keep sensitive code off this profile. The single-vendor `chatgpt` profile keeps every role on one vendor, so the cross-vendor review benefit needs a one-line reviewer override if you have a second provider; `github-copilot` defaults to Claude Sonnet 5 as the main for credit-cost sanity; override `agent.build.model` to `github-copilot/claude-fable-5` if you want max quality and accept the burn rate. There is no Claude Pro/Max provider profile: a Claude subscription login cannot be placed in `opencode.json` or exposed as `agent.build.model`. The optional bridge below can ask the official Claude Code CLI for a constrained plan review. Subscription lineups rotate; `npm run check-profiles` verifies every shipped id against [models.dev](https://models.dev), and CI runs it on each push.
+Four notes. `opencode-go` and `opencode-zen-free` include a `vision` role because their main models cannot read images. `opencode-zen-free` runs on free-period models (Big Pickle is a stealth model). OpenCode's policy allows prompts to be used for training while a model is free, so keep sensitive code off this profile. The single-vendor `chatgpt` profile keeps every role on one vendor, so the cross-vendor review benefit needs a one-line reviewer override if you have a second provider; `github-copilot` defaults to Claude Sonnet 5 as the main for credit-cost sanity; override `agent.build.model` to `github-copilot/claude-opus-5` if you want max quality and accept the burn rate. There is no Claude Pro/Max provider profile: a Claude subscription login cannot be placed in `opencode.json` or exposed as `agent.build.model`. The optional bridge below can ask the official Claude Code CLI for a constrained plan review. Subscription lineups rotate; `npm run check-profiles` verifies every shipped id against [models.dev](https://models.dev), and CI runs it on each push.
 
 ### Optional Claude Pro/Max plan review
 
@@ -128,7 +128,7 @@ The `claude` installer extra adds a small OpenCode plugin that invokes the offic
 2. Run the Fusion installer with your normal OpenCode profile or config and add the extra: `--extras commands,plugin,claude`.
 3. Fully quit and restart OpenCode. Ask Fusion to check `fusion_claude_status`, or say: "Have Claude review the plan before implementation."
 
-The plugin never reads or copies Claude's stored OAuth token. Before every review it checks for a first-party Pro/Max login, removes API-key and alternate-provider routing from the Claude process, defaults to `claude-fable-5` at high effort (the review tool accepts an optional full `claude-*` model id and an effort of low/medium/high/xhigh/max per call), uses [Claude Code print mode](https://code.claude.com/docs/en/cli-usage), disables tools and customizations, and turns off session persistence. Reviews run from a neutral temporary directory rather than your workspace, and the tools refuse any caller other than the build and plan agents at runtime, so even a hand-copied plugin without the installer's global deny serves no other agent. OpenCode denies these tools globally and grants them only to the build and plan agents through [custom-tool permissions](https://opencode.ai/docs/agents/).
+The plugin never reads or copies Claude's stored OAuth token. Before every review it checks for a first-party Pro/Max login, removes API-key and alternate-provider routing from the Claude process, defaults to `claude-opus-5` at high effort (the review tool accepts an optional full `claude-*` model id and an effort of low/medium/high/xhigh/max per call), uses [Claude Code print mode](https://code.claude.com/docs/en/cli-usage), disables tools and customizations, and turns off session persistence. Reviews run from a neutral temporary directory rather than your workspace, and the tools refuse any caller other than the build and plan agents at runtime, so even a hand-copied plugin without the installer's global deny serves no other agent. OpenCode denies these tools globally and grants them only to the build and plan agents through [custom-tool permissions](https://opencode.ai/docs/agents/).
 
 This remains an optional third-party integration. [Anthropic says](https://support.claude.com/en/articles/13189465-log-in-to-your-claude-account) subscription usage is designed for its native applications, including Claude Code, and that some third-party-tool access may be allowed at its discretion or charged to usage credits. The bridge does not misrepresent itself or convert OAuth into an API credential, but it is not a promise that subscription access or billing behavior will never change.
 

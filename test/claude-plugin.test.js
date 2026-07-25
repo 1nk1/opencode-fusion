@@ -89,7 +89,7 @@ describe('fusion Claude Code bridge', () => {
     stderr: '',
   });
 
-  const reviewResult = (result = 'PLAN_APPROVED\nThe plan is focused and testable.', model = 'claude-fable-5') => ({
+  const reviewResult = (result = 'PLAN_APPROVED\nThe plan is focused and testable.', model = 'claude-opus-5') => ({
     code: 0,
     stdout: JSON.stringify({
       result,
@@ -110,7 +110,7 @@ describe('fusion Claude Code bridge', () => {
   test('status verifies first-party Pro/Max auth without returning identity data', async () => {
     const tools = await toolsWith({ run: async () => authResult() });
     const output = await tools.fusion_claude_status.execute({}, { directory: 'C:/workspace', agent: 'build' });
-    assert.match(output, /bridge ready.*PRO.*claude-fable-5/i);
+    assert.match(output, /bridge ready.*PRO.*claude-opus-5/i);
     assert.doesNotMatch(output, /must-not-leak|@example\.com/i);
   });
 
@@ -136,7 +136,7 @@ describe('fusion Claude Code bridge', () => {
     assert.ok(calls[1].args.includes('-p'));
     assert.ok(calls[1].args.includes('--safe-mode'));
     assert.ok(calls[1].args.includes('--no-session-persistence'));
-    assert.equal(flagValue(calls[1].args, '--model'), 'claude-fable-5');
+    assert.equal(flagValue(calls[1].args, '--model'), 'claude-opus-5');
     assert.equal(flagValue(calls[1].args, '--effort'), 'high');
     assert.equal(flagValue(calls[1].args, '--tools'), '');
     assert.equal(flagValue(calls[1].args, '--permission-mode'), 'dontAsk');
@@ -193,11 +193,11 @@ describe('fusion Claude Code bridge', () => {
     const tools = await toolsWith({ run });
     for (const [args, pattern] of [
       [{ packet: 'plan', model: 'gpt-5' }, /full claude-\* model id/i],
-      [{ packet: 'plan', model: 'claude-fable-5 --dangerously-skip-permissions' }, /full claude-\* model id/i],
+      [{ packet: 'plan', model: 'claude-opus-5 --dangerously-skip-permissions' }, /full claude-\* model id/i],
       [{ packet: 'plan', model: 'claude-a-' }, /full claude-\* model id/i],
       [{ packet: 'plan', model: 'claude--x' }, /full claude-\* model id/i],
-      [{ packet: 'plan', model: 'CLAUDE-FABLE-5' }, /full claude-\* model id/i],
-      [{ packet: 'plan', model: ' claude-fable-5' }, /full claude-\* model id/i],
+      [{ packet: 'plan', model: 'CLAUDE-OPUS-5' }, /full claude-\* model id/i],
+      [{ packet: 'plan', model: ' claude-opus-5' }, /full claude-\* model id/i],
       [{ packet: 'plan', effort: 'ultra' }, /effort must be one of/i],
     ]) {
       await assert.rejects(
@@ -352,7 +352,7 @@ describe('fusion Claude Code bridge', () => {
     });
     await assert.rejects(
       wrongModel.fusion_claude_review.execute({ packet: 'plan' }, { directory: 'C:/workspace', agent: 'build' }),
-      /pinned claude-fable-5/i
+      /pinned claude-opus-5/i
     );
   });
 
@@ -361,21 +361,21 @@ describe('fusion Claude Code bridge', () => {
     const shortName = await toolsWith({
       run: async (options) => options.args[0] === 'auth'
         ? authResult()
-        : reviewResult('PLAN_APPROVED\nOk.', 'claude-fable-5'),
+        : reviewResult('PLAN_APPROVED\nOk.', 'claude-opus-5'),
     });
     await assert.rejects(
       shortName.fusion_claude_review.execute(
-        { packet: 'plan', model: 'claude-fable' },
+        { packet: 'plan', model: 'claude-opus' },
         { directory: 'C:/workspace', agent: 'build' }
       ),
-      /pinned claude-fable model/
+      /pinned claude-opus model/
     );
 
     // A date-stamped variant of the exact chosen id stays acceptable.
     const dated = await toolsWith({
       run: async (options) => options.args[0] === 'auth'
         ? authResult()
-        : reviewResult('PLAN_APPROVED\nOk.', 'claude-fable-5-20260115'),
+        : reviewResult('PLAN_APPROVED\nOk.', 'claude-opus-5-20260115'),
     });
     const output = await dated.fusion_claude_review.execute(
       { packet: 'plan' },
