@@ -19,8 +19,17 @@ const installer = path.join(
 
 // Exercised as a real child process: exit codes and refusal behavior are
 // part of the contract the skill relies on.
-function run(args) {
-  return spawnSync(process.execPath, [installer, ...args], { encoding: 'utf8' });
+function run(args, envOverrides) {
+  const options = { encoding: 'utf8' };
+  if (envOverrides) {
+    const env = { ...process.env };
+    for (const [key, value] of Object.entries(envOverrides)) {
+      if (value === undefined) delete env[key];
+      else env[key] = value;
+    }
+    options.env = env;
+  }
+  return spawnSync(process.execPath, [installer, ...args], options);
 }
 
 function readJson(file) {
@@ -626,5 +635,68 @@ describe('fusion-setup deterministic installer', () => {
     assert.equal(result.status, 0, result.stderr);
     assert.ok(!fs.existsSync(path.join(dir, 'opencode.json')));
     assert.ok(!fs.existsSync(path.join(dir, 'agent', 'reviewer.md')));
+  });
+
+  // The default destination has to track opencode's own resolution
+  // (XDG_CONFIG_HOME || ~/.config, then "opencode"). If it drifts, an install
+  // reports success into a directory opencode never reads. --dry-run prints the
+  // resolved directory, so these assert the choice without writing anything.
+  describe('default config directory', () => {
+    const escapeRe = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    function resolvedConfigDir(envOverrides) {
+      const result = run(['apply', '--profile', 'opencode-zen', '--dry-run'], envOverrides);
+      assert.equal(result.status, 0, result.stderr);
+      const match = result.stdout.match(/config dir:\s+(.+)/);
+      assert.ok(match, `no config dir line in output:\n${result.stdout}`);
+      return match[1].trim();
+    }
+
+    test('honors XDG_CONFIG_HOME, like opencode does', () => {
+      // Deliberately NOT under the home directory: when XDG_CONFIG_HOME happens
+      // to equal ~/.config the two resolutions coincide and the bug hides.
+      const xdg = fs.mkdtempSync(path.join(os.tmpdir(), 'fusion-xdg-'));
+      try {
+        assert.equal(resolvedConfigDir({ XDG_CONFIG_HOME: xdg }), path.resolve(xdg, 'opencode'));
+      } finally {
+        fs.rmSync(xdg, { recursive: true, force: true });
+      }
+    });
+
+    test('falls back to ~/.config/opencode when XDG_CONFIG_HOME is unset or empty', () => {
+      // A throwaway home keeps this off the developer's real install: apply
+      // validates an existing manifest before the dry-run short-circuit, so
+      // pointing at the true ~/.config could legitimately refuse and fail here
+      // for reasons that have nothing to do with path resolution. os.homedir()
+      // reads USERPROFILE on Windows and HOME elsewhere, so set both.
+      const home = fs.mkdtempSync(path.join(os.tmpdir(), 'fusion-home-'));
+      try {
+        const fallback = path.resolve(home, '.config', 'opencode');
+        for (const value of [undefined, '']) {
+          assert.equal(
+            resolvedConfigDir({ XDG_CONFIG_HOME: value, HOME: home, USERPROFILE: home }),
+            fallback,
+            `XDG_CONFIG_HOME=${JSON.stringify(value)} must fall back to ~/.config/opencode`
+          );
+        }
+      } finally {
+        fs.rmSync(home, { recursive: true, force: true });
+      }
+    });
+
+    test('an explicit --config-dir still wins over XDG_CONFIG_HOME', () => {
+      const xdg = fs.mkdtempSync(path.join(os.tmpdir(), 'fusion-xdg-'));
+      try {
+        const result = run(
+          ['apply', '--profile', 'opencode-zen', '--dry-run', '--config-dir', dir],
+          { XDG_CONFIG_HOME: xdg }
+        );
+        assert.equal(result.status, 0, result.stderr);
+        assert.match(result.stdout, new RegExp(`config dir:\\s+${escapeRe(path.resolve(dir))}`));
+        assert.doesNotMatch(result.stdout, new RegExp(escapeRe(xdg)));
+      } finally {
+        fs.rmSync(xdg, { recursive: true, force: true });
+      }
+    });
   });
 });

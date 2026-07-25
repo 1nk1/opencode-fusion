@@ -18,7 +18,11 @@ const path = require('node:path');
 const CORE_ROLES = new Set(['build.md', 'plan.md', 'sidekick.md']);
 
 const repoAgentDir = path.join(__dirname, '..', '.opencode', 'skills', 'fusion-setup', 'agent');
-const installedDir = path.join(os.homedir(), '.config', 'opencode', 'agent');
+// Same resolution opencode and the installer use: XDG_CONFIG_HOME || ~/.config.
+// Hardcoding ~/.config here would compare against a tree opencode never reads
+// and report "nothing to compare" on a machine that is in fact installed.
+const configBase = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
+const installedDir = path.join(configBase, 'opencode', 'agent');
 
 if (!fs.existsSync(installedDir)) {
   console.log(`No installed agent directory at ${installedDir} - nothing to compare.`);

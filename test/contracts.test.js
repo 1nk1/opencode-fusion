@@ -644,3 +644,51 @@ describe('build.md body preservation contracts', () => {
     );
   });
 });
+
+// agent/ is pinned closed above and profiles/ in profiles.test.js, so a stray
+// file in either fails immediately. commands/ and plugins/ reach the user only
+// through the installer's EXTRAS map, so an unregistered file there would ship
+// in the published bundle and never install - dead weight nothing catches.
+describe('bundle inventory contracts', () => {
+  const skillDir = path.join(__dirname, '..', '.opencode', 'skills', 'fusion-setup');
+  const listing = (sub) => fs.readdirSync(path.join(skillDir, sub)).sort();
+
+  const CONTRACTED = {
+    commands: ['fusion-setup.md', 'fusion-status.md'],
+    plugins: ['fusion-audit.js', 'fusion-claude.js'],
+  };
+
+  for (const [sub, expected] of Object.entries(CONTRACTED)) {
+    test(`${sub}/ contains exactly the contracted files`, () => {
+      assert.deepEqual(
+        listing(sub),
+        [...expected].sort(),
+        `contract violated: ${sub}/ must contain exactly the contracted files - a new file needs a contract here and an EXTRAS entry in install.js first`
+      );
+    });
+  }
+
+  test('bundled commands and plugins match the installer EXTRAS map exactly', () => {
+    const source = fs.readFileSync(path.join(skillDir, 'scripts', 'install.js'), 'utf8');
+    const block = source.match(/const EXTRAS\s*=\s*\{([\s\S]*?)\n\};/);
+    assert.ok(block, 'contract violated: install.js must keep a literal EXTRAS map this test can read');
+    const registered = new Set([...block[1].matchAll(/'([^']+)'/g)].map((m) => m[1]));
+    const bundled = Object.keys(CONTRACTED)
+      .flatMap((sub) => listing(sub).map((name) => `${sub}/${name}`))
+      .sort();
+
+    const unregistered = bundled.filter((rel) => !registered.has(rel));
+    assert.deepEqual(
+      unregistered,
+      [],
+      `contract violated: bundled file(s) absent from install.js EXTRAS, so the installer can never place them: ${unregistered.join(', ')}`
+    );
+
+    const orphaned = [...registered].filter((rel) => !bundled.includes(rel)).sort();
+    assert.deepEqual(
+      orphaned,
+      [],
+      `contract violated: install.js EXTRAS names file(s) the bundle does not ship: ${orphaned.join(', ')}`
+    );
+  });
+});
