@@ -179,10 +179,16 @@ const agents = Object.fromEntries(
   })
 );
 
+// design deliberately cannot launch sidekick. subagent_depth is 2, and
+// opencode blocks a task call once the caller already has that many ancestor
+// sessions, so build -> design -> sidekick would leave that sidekick unable to
+// reach the explore/research helpers its own prompt tells it to use. design has
+// full edit and bash, so it does mechanical work itself instead.
 const TASK_MAPS = {
   build: ['sidekick', 'explore', 'research', 'design', 'reviewer', 'vision'],
   plan: ['explore', 'research', 'reviewer'],
   sidekick: ['explore', 'research'],
+  design: ['explore', 'research'],
 };
 
 const REQUIRED_AGENTS = [
