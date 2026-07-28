@@ -2172,6 +2172,20 @@ html[data-theme="dark"] .term {
    their own padded box. */
 .release-tag {
   align-self: center;
+  /* Shorter and tighter than the shared pill: at .pill's padding the tag was
+     28px tall next to a 30px version heading, so it competed with the
+     heading instead of annotating it. */
+  padding: 0.15rem 0.5rem;
+}
+/* .pill fills with --surface (#ffffff), which sits under a percent of luminance
+   from this page's --bg (#fbfbfd) - on the homepage's tinted panels that reads
+   as a filled chip, but here it left an empty outline that looked like a
+   disabled button. --surface-2 reads as a fill against both page backgrounds
+   (#f5f5f7 light, #21262d dark). Excludes the accent-filled Latest tag, which
+   this rule would otherwise flatten: it is declared later than .pill-main at
+   equal specificity. */
+.release-tag:not(.pill-main) {
+  background: var(--surface-2);
 }
 /* Group label (Added / Changed / ...): a quiet mono eyebrow, not a heading
    that competes with the version above it. */
