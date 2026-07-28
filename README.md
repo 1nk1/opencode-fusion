@@ -217,6 +217,74 @@ Editing this file by hand is fine and loses nothing, but the installer records a
 
 The main agent's bash is allowlisted to verification and git commands (`npm run lint`, `npm test`, `git diff`, `git status`, `git log`, `git show`, `git add`); `git commit` and `git push` prompt for per-command approval, and force/mirror/delete-ref pushes are denied. Edit the installed `~/.config/opencode/agent/build.md` to add or remove allowed commands in the `permission.bash` section. Keep `"*": "deny"` first so unlisted commands are blocked by default, and keep the specific push denies *after* `"git push*"`; opencode resolves overlapping patterns by last-match-wins. Note that the allowlist matches each command in a chained line separately and denies the call if any one of them fails to match, so a chain is only as allowed as its least-allowed segment. `git status && git log` runs when both are allowlisted; `git status | head` does not, because the pipe consumer counts as its own command and `head` is not on the list. The agent prompts tell the agents to run one command per call anyway, so a denial names the command that caused it.
 
+> [!IMPORTANT]
+> **The shipped verification commands assume a Node/JavaScript project.** The
+> git half of the allowlist is universal, but the JS entries only exist in a JS
+> toolchain. On any other stack the main agent cannot run your tests, and you
+> will see it denied on the command you expect it to use.
+>
+> Each role ships its own subset, so check the file you are editing rather than
+> assuming all three match:
+>
+> | Entry | `build.md` | `plan.md` | `reviewer.md` |
+> |---|---|---|---|
+> | `"npm run lint*"` | yes | yes | yes |
+> | `"npm test*"` | yes | yes | yes |
+> | `"npx vitest run*"` | yes | yes | yes |
+> | `"npx tsc --noEmit*"` | yes | yes | no |
+> | `"npm run build*"` | yes | no | no |
+>
+> (`build.md` also allows `"npm --version*"`, a read-only probe that needs no
+> per-stack equivalent.)
+>
+> Replace the entries the file actually has, keeping `"*": "deny"` first. These
+> name the tool per stack; the exact pattern is yours to write, and the next
+> paragraph is the part that matters:
+>
+> | Stack | Verification tools |
+> |---|---|
+> | Python | `pytest`, `ruff check`, `mypy` |
+> | Rust | `cargo test`, `cargo clippy`, `cargo check` |
+> | Go | `go test`, `go vet` |
+> | Make-driven | `make test`, `make lint` |
+>
+> **Prefer an exact pattern over a trailing `*`.** A trailing `*` matches the
+> entire rest of the command, so `"ruff check*"` also permits
+> `ruff check --fix` and `ruff check --add-noqa`, both of which rewrite your
+> source. `"go test*"` permits `-o`, `-exec`, and the `-coverprofile` family,
+> all of which write files. Enumerating those flags as denies is a losing game -
+> every tool keeps adding more. If you can pin the command your project actually
+> runs (`"pytest"`, `"make test"`, `"cargo test --workspace"`), do that and skip
+> the wildcard. Reach for `*` only where you genuinely need to pass varying
+> paths, and then read your tool's flag list before you paste it.
+>
+> Denies narrow an allow you cannot avoid making broad, the way the shipped list
+> denies `npm run lint --fix` and `npx vitest run -u`. Put each deny *after* the
+> allow it narrows: opencode resolves overlapping patterns by last-match-wins,
+> so a deny above its allow is silently overridden. Treat the deny as a
+> backstop, not the primary control - the tight allow is the control.
+>
+> The shipped JS entries are that unavoidable case, which is why they look like
+> the thing this section tells you to avoid. `npm test` and `npm run lint` take
+> project-specific arguments (a path, `--workspace`, a `-t` filter), so pinning
+> them exactly would deny the run you actually want; the trailing `*` stays and
+> the denies below it carry the weight. Where your own command takes no varying
+> arguments, you get the tighter option and should use it.
+>
+> **Keep the commands read-only or idempotent.** The point is that the main
+> agent can verify without being able to mutate, so a formatter that rewrites
+> files (`ruff format`, `cargo fmt`, `gofmt -w`) belongs with the sidekick, not
+> here. For the same reason `go build` and a `build` Make target are absent
+> above: `go build` writes an executable, and a Make recipe does whatever the
+> project defined it to do - a `test` target that regenerates fixtures is a
+> write, whatever it is called. Read the recipe before allowing it.
+>
+> One more thing worth knowing: these prompts install globally to
+> `~/.config/opencode/agent/`, not per project. If you work across several
+> stacks with one opencode install, add your stack's entries alongside the JS
+> ones instead of replacing them - otherwise the next Node project you open
+> cannot verify itself.
+
 > [!NOTE]
 > Editing an installed prompt makes it yours. The installer records a hash of every file it writes, and a reapply refuses rather than overwrite a file that changed - deliberately, so your customization is never silently clobbered. There is no `--adopt` override for prompts (unlike `opencode.json`). To hand the file back to the installer, restore the bundled copy from `.opencode/skills/fusion-setup/agent/` first. Keep a note of your edit either way, since a reapply that does succeed installs the bundled version.
 
