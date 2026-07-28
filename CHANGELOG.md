@@ -20,6 +20,16 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Agent routing in `build.md` now gives each role a positive and a negative
+  case (`Delegate when` / `Don't delegate when`) plus a rule of thumb, instead
+  of one line per role. `sidekick`, `design`, `research`, and `reviewer`
+  escalate when handed work that belongs to another role rather than returning
+  partial work. `research.md` and `reviewer.md` gained a
+  STATUS / FINDINGS / VERIFIED / GAPS report format, modeled on the
+  STATUS / CHANGES / VERIFIED / GAPS block `sidekick.md` already used, and
+  `plan.md` gained a plan format adapted from the five-part delegation spec.
+  Prompt wording only - the mechanical guarantees still come from permission
+  frontmatter.
 - The Limitations section now states what opencode 2.0 does and does not carry
   over. v2 translates v1-shaped configuration in memory, so the config and agent
   prompts are expected to load under `opencode2` unconverted; V1 plugins do not
